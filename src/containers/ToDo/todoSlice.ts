@@ -3,32 +3,37 @@ import axiosAPI from '../../../axiosAPI.ts';
 import { RootState } from '../../app/store.ts';
 
 interface todoState {
-  value: string;
+  title: string;
   isLoading: boolean;
   error: boolean;
   status: boolean;
 }
 
 const initialState: todoState = {
-  value: '',
+  title: '',
   isLoading: false,
   error: false,
   status: false
 };
 
-export const fetchTask = createAsyncThunk<void, void, {state: RootState}>("task/fetchTask", async (_arg, thunkApi) => {
-  const task = thunkApi.getState().task.value;
-  const status = thunkApi.getState().task.status;
-  console.log(task);
-  await axiosAPI.post("task.json", {task, status});
+export const fetchTask = createAsyncThunk<void, { title: string, status: boolean }, {state: RootState}>("task/fetchTask", async (_arg) => {
+  const title = _arg.title;
+  const status = _arg.status;
+  await axiosAPI.post("task.json", {title, status});
 });
+
+export const fetchFromFireBase = createAsyncThunk("task/fetchFromFireBase", async () => {
+  const {data:task} = await axiosAPI("task.json");
+  return task;
+});
+
 
 export const todoSlice = createSlice({
   name: "task",
   initialState,
   reducers: {
     addTask: (state, action: PayloadAction<string>) => {
-      state.value = action.payload;
+      state.title = action.payload;
     }
   },
   extraReducers: (builder) => {
@@ -43,7 +48,19 @@ export const todoSlice = createSlice({
     .addCase(fetchTask.rejected, (state) => {
       state.isLoading = false;
       state.error = true;
-    });
+    })
+  .addCase(fetchFromFireBase.pending, (state) => {
+      state.isLoading = true;
+      state.error = false;
+    })
+      .addCase(fetchFromFireBase.fulfilled, (state, action) => {
+        state.isLoading = true;
+        state.title = action.payload;
+      })
+      .addCase(fetchFromFireBase.rejected, (state) => {
+        state.isLoading = false;
+        state.error = true;
+      });
   }
 });
 
